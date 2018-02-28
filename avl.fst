@@ -40,8 +40,8 @@ let rec is_bst t =
                     all (fun n' -> n < n') t2 && is_bst t1 && is_bst t2
 
 
-val create_tree: n:int -> t1:tree{is_bst t1} 
-    -> t2:tree{is_bst t2} -> Tot (r:tree{is_bst r})
+val create_tree: n:int -> tree 
+    -> tree -> Tot tree
 let create_tree n t1 t2 =
 	Node n (t1, height t1) (t2, height t2)
 	
@@ -51,7 +51,7 @@ let bf t = match t with
     | Leaf -> 0
     | Node _ (_, h1) (_, h2) -> h1 - h2
 
-val is_balanced: t:tree{is_bst t} -> Tot bool
+val is_balanced: t:tree -> Tot bool
 let rec is_balanced t =
     match t with
     | Leaf -> true
@@ -76,14 +76,20 @@ let rec insert_bst x t =
                     else if x < n then create_tree n (insert_bst x t1) t2
                     else               create_tree n t1 (insert_bst x t2)
 
-val rebalance: t1:tree{is_bst t1} -> Tot tree
-let rec rebalance t1 = 
-  if is_balanced t1 then t1
-  else if bf t1 = 2 then t1
-  else t1
-
+val rebalance: t:tree -> Tot tree
+let rec rebalance t = 
+  if is_balanced t then t
+  else match t with
+      Node _ (tl, hl) (tr, hr) ->
+          if bf t = 2 then
+            if bf tl <> -1 then t
+            else t
+          else 
+            if bf tr <> -1 then t
+            else t
+  
 val insert_avl: x:int -> t:tree{is_balanced t} -> 
-  Tot (r:tree{is_balanced r /\ (forall y. in_tree y r <==> (in_tree y t \/ x = y))})
+  Tot (r:tree{ (forall y. in_tree y r <==> (in_tree y t \/ x = y))})
 
 let rec insert_avl x t = 
     rebalance (match t with
