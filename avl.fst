@@ -39,6 +39,7 @@ let rec is_bst t =
   | Node n (t1, h1) (t2, h2) -> all (fun n' -> n > n') t1 &&
                     all (fun n' -> n < n') t2 && is_bst t1 && is_bst t2
 
+                   
 
 val create_tree: n:int -> tree 
     -> tree -> Tot tree
@@ -57,6 +58,11 @@ let rec is_balanced t =
     | Leaf -> true
     | Node n (t1, h1) (t2, h2) -> is_balanced t1 && is_balanced t2 &&
                     abs (bf t) <= 1
+
+val is_avl: t:tree -> Tot bool
+let is_avl t = 
+    is_bst t && is_balanced t 
+
                     
 val search : x:int -> t:tree{is_bst t} ->
   Tot (r:bool{r <==> in_tree x t})
@@ -99,5 +105,30 @@ let rec insert_avl x t =
                     else               create_tree n t1 (insert_avl x t2))
 
 
-    
+val left_rotate: t:tree{is_bst t}  -> Tot (r:tree{is_bst r})
+let rec left_rotate t =
+    match t with 
+    |   Leaf -> Leaf  
+    |   Node x (a_tree, _) (y_tree, h2) ->
+        match y_tree with
+        |   Leaf -> t 
+        |   Node y (b_tree, _) (c_tree, _) ->
+            create_tree y (create_tree x a_tree b_tree) c_tree
 
+
+
+val create_tree_keeps_elems: n:int -> t1:tree{is_bst t1} -> t2:tree{is_bst t2} ->
+    (Lemma(requires true)( ensures forall y. in_tree y (create_tree n t1 t2) <==> in_tree y t1  \/ in_tree y t2 \/ n = y  ) )
+
+let rec create_tree_keeps_elems n t1 t2 = 
+    ()
+
+val left_rotate_keeps_elements: t:tree{is_bst t} -> Lemma(requires true)(ensures (forall y. in_tree y (left_rotate t) <==> in_tree y t ) )
+
+let rec left_rotate_keeps_elements t =
+    match t with 
+    |   Leaf -> ()  
+    |   Node x (a_tree, _) (y_tree, h2) ->
+        match y_tree with
+        |   Leaf -> () 
+        |   Node y (b_tree, _) (c_tree, _) -> ()
