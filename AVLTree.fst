@@ -18,6 +18,15 @@ let rec height t =
 	match t with
 	| Leaf -> 0
 	| Node _ (t1,h1) (t2, h2) -> (max h1 h2) + 1
+	
+val is_empty: tree -> bool
+let is_empty t =
+	match t with 
+	| Leaf -> true
+	| _ -> false
+	
+type empty_tree = t:tree{is_empty t}
+type nonempty_tree = t:tree{not (is_empty t)}
 
 val in_tree : int -> tree -> Tot bool
 let rec in_tree x t =
@@ -128,3 +137,22 @@ val left_rotate_keeps_elements: t:bst -> Lemma(forall y. in_tree y (left_rotate 
 
 let rec left_rotate_keeps_elements t =
     ()
+
+val right: tree -> tree
+let right t = 
+	match t with
+	| Node _ (t1, _) (t2, _) -> t2
+	| Leaf -> Leaf
+	
+val is_case_A: t:bst -> bool 
+let is_case_A t = 
+	if bf t = 2 then
+		bf (right t) = 1
+	else
+		false
+		
+val bf_2_is_non_empty: t:tree{bf t == 2} -> Lemma(not(is_empty t))
+let bf_2_is_non_empty t =
+	()
+		
+type case_A_tree = t:bst{is_case_A t}
