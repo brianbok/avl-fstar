@@ -143,16 +143,33 @@ let right t =
 	match t with
 	| Node _ (t1, _) (t2, _) -> t2
 	| Leaf -> Leaf
+
+val left: tree -> tree
+let left t = 
+	match t with
+	| Node _ (t1, _) (t2, _) -> t1
+	| Leaf -> Leaf
 	
 val is_case_A: t:bst -> bool 
 let is_case_A t = 
-	if bf t = 2 then
-		bf (right t) = 1
-	else
-		false
+	bf t = 2 && bf (right t) = 1 && is_avl (right t) && is_avl (left t)
+	
 		
 val bf_2_is_non_empty: t:tree{bf t == 2} -> Lemma(not(is_empty t))
 let bf_2_is_non_empty t =
 	()
 		
 type case_A_tree = t:bst{is_case_A t}
+
+val left_rotate_bla: t:case_A_tree -> t2:avl
+let left_rotate_bla t = 
+	let t2 = left_rotate t in 
+	let h = height(left t) in
+	assert(height(left (right t)) = h); 
+	assert(is_avl t2);
+	t2
+
+val left_rotate_case_A_balances: t:case_A_tree -> Lemma(is_avl (left_rotate t))
+let left_rotate_case_A_balances t = 
+	let h = height(left t) in
+	assert(height(left (right t)) == h)
