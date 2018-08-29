@@ -18,6 +18,15 @@ let rec height t =
 	match t with
 	| Leaf -> 0
 	| Node _ (t1,h1) (t2, h2) -> (max h1 h2) + 1
+	
+val is_empty: tree -> bool
+let is_empty t =
+	match t with 
+	| Leaf -> true
+	| _ -> false
+	
+type empty_tree = t:tree{is_empty t}
+type nonempty_tree = t:tree{not (is_empty t)}
 
 val in_tree : int -> tree -> Tot bool
 let rec in_tree x t =
@@ -36,10 +45,10 @@ val is_bst : tree -> Tot bool
 let rec is_bst t =
   match t with
   | Leaf -> true
-  | Node n (t1, h1) (t2, h2) -> all (fun n' -> n > n') t1 &&
+  | Node n (t1, _) (t2, _) -> all (fun n' -> n > n') t1 &&
                     all (fun n' -> n < n') t2 && is_bst t1 && is_bst t2
 
-                   
+type bst = t:tree{is_bst t}                   
 
 val create_tree: n:int -> tree 
     -> tree -> Tot tree
@@ -63,6 +72,7 @@ val is_avl: t:tree -> Tot bool
 let is_avl t = 
     is_bst t && is_balanced t 
 
+type avl = t:tree{is_avl t}
                     
 val search : x:int -> t:tree{is_bst t} ->
   Tot (r:bool{r <==> in_tree x t})
@@ -73,12 +83,13 @@ let rec search x t =
                     else if x < n then search x t1
                     else               search x t2
 
-val insert_bst : x:int -> t:tree{is_bst t} ->
-  Tot (r:tree{is_bst r /\ (forall y. in_tree y r <==> (in_tree y t \/ x = y))})
+val insert_bst : x:int -> t:bst ->
+  Tot (r:bst{(forall y. in_tree y r <==> (in_tree y t \/ x = y))})
 let rec insert_bst x t =
   match t with
   | Leaf -> create_tree x Leaf Leaf
-  | Node n (t1, h1) (t2, h2) -> if x = n then      t
+  | Node n (t1, h1) (t2, h2) -> 
+					if x = n then      t
                     else if x < n then create_tree n (insert_bst x t1) t2
                     else               create_tree n t1 (insert_bst x t2)
 
@@ -94,7 +105,7 @@ let rec rebalance t =
             if bf tr <> -1 then t
             else t
   
-val insert_avl: x:int -> t:tree{is_balanced t} -> 
+val insert_avl: x:int -> t:avl -> 
   Tot (r:tree{ (forall y. in_tree y r <==> (in_tree y t \/ x = y))})
 
 let rec insert_avl x t = 
@@ -105,7 +116,7 @@ let rec insert_avl x t =
                     else               create_tree n t1 (insert_avl x t2))
 
 
-val left_rotate: t:tree{is_bst t}  -> Tot (r:tree{is_bst r})
+val left_rotate: t:bst  -> Tot (r:bst)
 let rec left_rotate t =
     match t with 
     |   Leaf -> Leaf  
@@ -116,19 +127,49 @@ let rec left_rotate t =
             create_tree y (create_tree x a_tree b_tree) c_tree
 
 
-
 val create_tree_keeps_elems: n:int -> t1:tree{is_bst t1} -> t2:tree{is_bst t2} ->
-    (Lemma(requires true)( ensures forall y. in_tree y (create_tree n t1 t2) <==> in_tree y t1  \/ in_tree y t2 \/ n = y  ) )
+    Lemma(forall y. in_tree y (create_tree n t1 t2) <==> in_tree y t1  \/ in_tree y t2 \/ n = y) 
 
 let rec create_tree_keeps_elems n t1 t2 = 
     ()
 
-val left_rotate_keeps_elements: t:tree{is_bst t} -> Lemma(requires true)(ensures (forall y. in_tree y (left_rotate t) <==> in_tree y t ) )
+val left_rotate_keeps_elements: t:bst -> Lemma(forall y. in_tree y (left_rotate t) <==> in_tree y t )
 
 let rec left_rotate_keeps_elements t =
-    match t with 
-    |   Leaf -> ()  
-    |   Node x (a_tree, _) (y_tree, h2) ->
-        match y_tree with
-        |   Leaf -> () 
-        |   Node y (b_tree, _) (c_tree, _) -> ()
+    ()
+
+val right: tree -> tree
+let right t = 
+	match t with
+	| Node _ (t1, _) (t2, _) -> t2
+	| Leaf -> Leaf
+
+val left: tree -> tree
+let left t = 
+	match t with
+	| Node _ (t1, _) (t2, _) -> t1
+	| Leaf -> Leaf
+	
+val is_case_A: t:bst -> bool 
+let is_case_A t = 
+	bf t = 2 && bf (right t) = 1 && is_avl (right t) && is_avl (left t)
+	
+		
+val bf_2_is_non_empty: t:tree{bf t == 2} -> Lemma(not(is_empty t))
+let bf_2_is_non_empty t =
+	()
+		
+type case_A_tree = t:bst{is_case_A t}
+
+val left_rotate_bla: t:case_A_tree -> t2:avl
+let left_rotate_bla t = 
+	let t2 = left_rotate t in 
+	let h = height(left t) in
+	assert(height(left (right t)) = h); 
+	assert(is_avl t2);
+	t2
+
+val left_rotate_case_A_balances: t:case_A_tree -> Lemma(is_avl (left_rotate t))
+let left_rotate_case_A_balances t = 
+	let h = height(left t) in
+	assert(height(left (right t)) == h)
