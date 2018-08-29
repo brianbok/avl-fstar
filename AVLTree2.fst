@@ -76,6 +76,23 @@ let rec search x t =
                     else if x < n then search x t1
                     else               search x t2
 
+
+let can_left_rot t = match t with
+    | T _ _ _ (T _ _ _ _ _) _ -> true
+    | otherwise -> false
+
+val left_rotate: t:avltree{can_left_rot t} -> r:avltree
+let left_rotate (T x a_tree _ (T y b_tree _ c_tree _) _) =
+  create_tree y (create_tree x a_tree b_tree) c_tree
+
+let can_right_rot t = match t with
+    | T _ (T _ _ _ _ _) _ _ _-> true
+    | otherwise -> false
+
+val right_rotate: t:avltree{can_right_rot t} -> r:avltree
+let right_rotate (T y (T x a_tree _ b_tree _) _ c_tree _)  =
+  create_tree x a_tree (create_tree y b_tree c_tree)
+
 val rebalance: t:avltree -> Tot avltree
 let rec rebalance t = 
   if abs(bf t) <= 1 then t
@@ -85,8 +102,8 @@ let rec rebalance t =
             if bf tl <> -1 then left_rotate t
             else left_rotate (right_rotate t)
           else 
-            if bf tr <> -1 then 
-            else t
+            if bf tr <> -1 then right_rotate t
+            else left_rotate (right_rotate t)
 
 
 let ins_inv x t r = (forall y. in_tree y r <==> (in_tree y t \/ x = y))
@@ -100,22 +117,6 @@ let rec insert_avl x t =
   | T n t1 h1 t2 h2 -> if x = n then      t
                     else if x < n then create_tree n (insert_avl x t1) t2
                     else               create_tree n t1 (insert_avl x t2))
-
-let can_left_rot t = match t with
-    | T _ _ _ (T _ _ _ _ _) _ -> true
-    | otherwise -> false
-
-val left_rotate: t:avltree{can_left_rot t} -> r:avltree
-let left_rotate (T x a_tree _ (T y b_tree _ c_tree _) _) =
-  create_tree y (create_tree x a_tree b_tree) c_tree
-
-let can_right_rot t = match t with
-    | T _ (T _ _ _ _ _) _ _ -> true
-    | otherwise -> false
-
-val right_rotate: t:avltree{can_right_rot t} -> r:avltree
-let right_rotate (T y (T x a_tree _ b_tree _) c_tree _  =
-  create_tree y (create_tree x a_tree b_tree) c_tree
 
 
 type avl_inv (t:avltree) = k_inv t /\ b_inv t
