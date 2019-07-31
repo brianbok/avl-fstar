@@ -1,0 +1,3 @@
+type avl 'a: =
+   |  Leaf : avl 'a
+   |  Node : key:'a -> l:avl (x:'a{x < key}) -> r: avl (x:'a{x < key}) -> avl 'a
