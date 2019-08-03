@@ -16,22 +16,15 @@ let less_k k x = x < k
 val more_k : k:int -> x:int -> Tot bool
 let more_k k x = x > k 
 
-(*
-val all_less_than : k:int -> t:tree -> Tot bool
-let all_less_than k t = all_tree (less_k k) t
-
 val all_more_than : k:int -> t:tree -> Tot bool
-let all_more_than k = all_tree (more_k k)*)
-
-val all_more_than : x:int -> t:tree -> Tot bool
-let rec all_more_than x = function 
+let rec all_more_than k = function 
 | Leaf -> true
-| Node y l r _ -> y > x && all_more_than x l && all_more_than x r 
+| Node y l r _ -> y > k && all_more_than k l && all_more_than k r 
 
-val all_less_than : x:int -> t:tree -> Tot bool
-let rec all_less_than x = function 
+val all_less_than : k:int -> t:tree -> Tot bool
+let rec all_less_than k = function 
 | Leaf -> true
-| Node y l r _ -> y < x && all_more_than x l && all_more_than x r 
+| Node y l r _ -> y < k && all_less_than k l && all_less_than k r 
 
 
 val is_bst : tree -> Tot bool
@@ -99,7 +92,7 @@ let empty = Leaf
 val singleton : int -> avln 1
 let singleton x =  Node x empty empty 1
 
-val mk_node : v:int -> l:(avll v) -> r:(r':avlr v {has_bal 1 l r'}) -> Tot (t:avln (node_height l r ))
+val mk_node : v:int -> l:(avll v) -> r:avlr v {has_bal 1 l r} -> Tot (avln (node_height l r ))
 let mk_node v l r = 
  let hl = get_height l in
  let hr = get_height r in
@@ -164,24 +157,32 @@ let is_left_big l r = diff l r = 2
 val is_right_big : l:tree{has_real_heights l} -> r:tree{has_real_heights r} -> Tot bool
 let is_right_big l r = diff r l = 2
 
-val balL0 : x:int -> l:avll x {is_not_heavy l && not_empty l} -> r:avlr x {is_left_big l r} -> avln (real_height l + 1)
-let balL0 x (Node lv ll lr _) r = 
-  let y = mk_node x lr r in  
-  mk_node lv ll y
+
+val all_more_intro_p: v:int -> x:int {x > v} -> l:tree {all_more_than x l} -> Lemma (all_more_than v l)
+let all_more_intro_p v x l = admit ()
+
+
+val all_less_intro_p: v:int -> x:int {x <= v} -> l:tree {all_less_than x l} -> Lemma (all_less_than v l)
+let all_less_intro_p v x l = admit ()
+
+val all_more_intro: v:int -> x:int {x > v} -> l:avll x {all_more_than v l} -> r:avlr x{all_more_than v r && has_bal 1 l r} -> Lemma (all_more_than v (mk_node x l r))
+let all_more_intro v x l r  = ()
+
+val all_less_intro: v:int -> x:int {x < v} -> l:avll x {all_less_than v l} -> r:avlr x {all_less_than v r && has_bal 1 l r} -> Lemma ((all_less_than v (mk_node x l r)))
+let all_less_intro v x l r  = ()
+
+val balL0 : x:int -> l:avll x {is_not_heavy l} -> r:avlr x {is_left_big l r} -> avln (real_height l + 1)
+let balL0 x l r = match l with 
+  | (Node lv ll lr _) -> 
+    let y = mk_node x lr r in
+    all_more_intro_p lv x r;
+    mk_node lv ll y
+  | _ -> admit ()
 
 val balLL : x:int -> l:avll x {is_left_heavy l} -> r:avlr x {is_left_big l r} -> avlt l
-let balLL v (Node lv ll lr _) r = mk_node lv ll (mk_node v lr r)
-
-(*
-val balLR :x:int  -> l:avll x {is_right_heavy l} -> r:avlr x {is_left_big l r} -> avlt l
-let balLR v (Node lv ll (Node lrv lrl lrr _) _) r
-  = let y = mk_node v lrr r in
-    assert (all_more_than lrv lrr );
-    
-    assert (all_more_than lrv r);
-    assert (lv < v);
-    
-    mk_node lrv (mk_node lv ll lrl) (y) *)
+let balLL v (Node lv ll lr _) r =
+  all_more_intro_p lv v r;
+  mk_node lv ll (mk_node v lr r)
 
 val eq_or_up : s:tree{has_real_heights s} -> t:tree{has_real_heights t} -> Tot bool
 let eq_or_up s t = 
@@ -202,16 +203,91 @@ let big_ht l r t =
 val re_bal : l:tree {has_real_heights l} -> r:tree {has_real_heights r} -> t:tree{has_real_heights t} -> Tot bool  
 let re_bal l r t = big_ht l r t && bal_ht l r t
 
-val all_more_than_2: t:tree -> k:int -> Tot bool
-let all_more_than_2 = function
-  | Leaf  -> fun x . true
-  | Node v l r _ -> fun k. = v > k && all_more_than_2 l k && all_more_than_2 r k
+val transitividad : a:int -> b:int {b > a} -> c:int {b < c} -> Lemma (a < c)
+let transitividad a b c = ()
 
-val all_more_intro_2 = v:int -> x:int {x > v} -> l:avll x {all_more_than_2 l v} -> r:avlr x{all_more_than r v} -> Lemma (all_more_than_2 (mk_node x l r) v)
-let all_more_intro_2 = ()
+val balLR :x:int  -> l:avll x {is_right_heavy l} -> r:avlr x {is_left_big l r} -> Tot (avlt l)
+let balLR v l r = match l with
+  | (Node lv ll (Node lrv lrl lrr lrh) lh) -> 
+    let y = mk_node v lrr r in
+       
+    all_more_intro_p lrv v r;
+    all_less_intro_p lrv lv ll; 
 
-val balR0 : x:int  -> r:avlr x {is_not_heavy r && not_empty r} -> l:avll x {is_right_big l r} -> avln (real_height l + 1)
-let balR0 x (Node rv rl rr _) l = mk_node rv (mk_node x l rl) rr
- 
+    mk_node lrv (mk_node lv ll lrl) (y)
+  | _ -> 
+    (* assert (! (is_right_heavy l)); *)
+    
+    admit()
+
+
+val balR0 : x:int  -> r:avlr x {is_not_heavy r} -> l:avll x {is_right_big l r} -> Tot (avln (real_height r + 1))
+let balR0 x r l = match r with 
+  | (Node rv rl rr _) ->
+    all_less_intro_p rv x l;
+    mk_node rv (mk_node x l rl) rr
+  | _ -> 
+    admit ()
+
+
+val balRR : x:int -> l:avll x -> r:avlr x {is_right_big l r && is_right_heavy r} -> Tot (avlt r)
+let balRR x l (Node rv rl rr _) = 
+  all_less_intro_p rv x l;
+  mk_node rv (mk_node x l rl) rr 
+
+val balRL : x:int -> l: avll x -> r:avlr x {is_right_big l r && is_left_heavy r} -> Tot (avlt r)
+let balRL x l = function
+  | (Node rv (Node rlv rll rlr _) rr _) -> 
+    all_less_intro_p rlv x l;
+    all_more_intro_p rlv rv rr;
+    mk_node rlv (mk_node x l rll ) (mk_node rv rlr rr)
+  | _ -> 
+    (* should be impossible *)
+    admit ()
+
 val bal : x:int -> l:avll x -> r:avlr x {has_bal 2 l r} -> t:avl {re_bal l r t}
-let bal x l r = admit ()
+let bal v l r  = 
+  let ilb = is_left_big l r in
+  let irb = is_right_big l r in
+  if (ilb && is_left_heavy l) then balLL v l r
+  else if (ilb && is_right_heavy l) then balLR v l r
+  else if (ilb) then balL0 v l r
+  else if (irb && is_left_heavy r) then balRL v l r
+  else if (irb && is_right_heavy r) then balRR v l r
+  else if (irb) then balR0 v r l
+  else mk_node v l r
+
+val minimum : t:tree {not_empty t} -> Tot int
+let rec minimum (Node x l r _) = 
+  let lv = if not_empty l then minimum l else x in
+  let lr = if not_empty r then minimum r else x in
+  min( min x lv) lr
+
+
+val maximum : t:tree {not_empty t} -> Tot int
+let rec maximum (Node x l r _) = 
+  let lv = if not_empty l then maximum l else x in
+  let lr = if not_empty r then maximum r else x in
+  max ( max x lv) lr
+
+val maximum_all_less_lemma : t:tree{not_empty t} -> Lemma (all_less_than (maximum t + 1) t )
+let maximum_all_less_lemma t = admit ()
+
+val all_less_minimum_lemma : v:int -> t:tree{all_less_than v t} -> Lemma (not_empty t ==> maximum t < v)
+let all_less_minimum_lemma v t = admit ()
+
+
+val insert: x:int -> s:avl -> Tot (t:avl {not_empty t /\ eq_or_up s t /\ (minimum t = (if is_empty s then x else min x (minimum s))) /\ (maximum t = (if is_empty s then x else max x (maximum s)))}) (decreases s)
+let rec insert x t = match t with
+  | (Node v l r n) ->
+    if x < v then begin
+      let insl = insert x l in
+      all_less_minimum_lemma v l;
+      assert (maximum insl <= v - 1);
+      maximum_all_less_lemma insl;
+      all_less_intro_p v (maximum insl + 1) insl;
+      bal v insl r
+    end else if x > v then begin
+      bal v l (insert x r)
+    end else t
+  | Leaf -> singleton x
