@@ -1,8 +1,0 @@
-
-val insert : x:int -> t:avl -> Tot avl
-let rec insert x = function
-  | Leaf -> singleton x
-  | Node y l r _ -> 
-    if x < y 
-    then mk_node y (insert x l) r
-    else mk_node y l (insert x r)
