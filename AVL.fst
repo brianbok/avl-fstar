@@ -270,9 +270,6 @@ let bal_in_tree x l r = ()
 val intro_diff_0_or_1_c :t:tree -> s:tree {real_height t - real_height s >= 0 /\ real_height t - real_height s <= 1} -> Lemma (real_diff t s = 0 \/ real_diff t s = 1)
 let intro_diff_0_or_1_c t s = ()
 
-val magic_lemma_bal : t:tree -> s:tree -> Lemma (real_height t - real_height s >= 0 /\ real_height t - real_height s <= 1)
-let magic_lemma_bal  t s = admit ()
-
 val insert: x:int -> s:avl -> Tot (t:avl {not_empty t /\ eq_or_up s t /\ (forall y. (in_tree y t) <==> (in_tree y s \/ x = y))})
 let rec insert x s = match s with
   | Leaf -> singleton x
