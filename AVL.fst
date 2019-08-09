@@ -5,25 +5,21 @@ type tree =
      | Leaf : tree
      | Node : key:int -> l:tree -> r:tree -> ah:int -> tree
 
-val all_tree : f:(int-> Tot bool) -> tree -> Tot bool
-let rec all_tree f = function
-    | Leaf -> true
-    | (Node k l r _) -> f k && all_tree f l && all_tree f r
-
 val in_tree : x:int -> t:tree -> Tot bool
 let rec in_tree x = function
   | Leaf -> false
   | Node y l r _ -> y = x || in_tree x l || in_tree x r
 
+val all_tree : f:(int-> Tot bool) -> t:tree -> Tot (r:bool {r = true <==> (forall y. in_tree y t ==> f y)})
+let rec all_tree f = function
+    | Leaf -> true
+    | (Node k l r _) -> f k && all_tree f l && all_tree f r
+
 val all_more_than : k:int -> t:tree -> Tot (r:bool {r <==> (forall x. in_tree x t ==> x > k)})
-let rec all_more_than k = function
-| Leaf -> true
-| Node y l r _ -> y > k && all_more_than k l && all_more_than k r
+let all_more_than k = all_tree (fun x -> x > k)
 
 val all_less_than : k:int -> t:tree -> Tot (r:bool {r <==> (forall x. in_tree x t ==> x < k)})
-let rec all_less_than k = function
-| Leaf -> true
-| Node y l r _ -> y < k && all_less_than k l && all_less_than k r
+let all_less_than k = all_tree (fun x -> x < k)
 
 val is_bst : tree -> Tot bool
 let rec is_bst = function
@@ -144,16 +140,18 @@ val is_right_big : l:tree{has_real_heights l} -> r:tree{has_real_heights r} -> T
 let is_right_big l r = diff r l = 2
 
 val all_more_transitive: v:int -> x:int {x > v} -> l:tree {all_more_than x l} -> Lemma (all_more_than v l)
-let all_more_transitive v x l = admit ()
+let all_more_transitive v x l = ()
 
 val all_less_transitive: v:int -> x:int {x <= v} -> l:tree {all_less_than x l} -> Lemma (all_less_than v l)
-let all_less_transitive v x l = admit ()
+let all_less_transitive v x l = ()
 
 val all_more_intro: v:int -> x:int {x > v} -> l:avll x {all_more_than v l} -> r:avlr x{all_more_than v r && has_bal 1 l r} -> Lemma (all_more_than v (mk_node x l r))
 let all_more_intro v x l r  = ()
 
 val all_less_intro: v:int -> x:int {x < v} -> l:avll x {all_less_than v l} -> r:avlr x {all_less_than v r && has_bal 1 l r} -> Lemma ((all_less_than v (mk_node x l r)))
 let all_less_intro v x l r  = ()
+
+let impossible = x:int{false}
 
 val balL0 : x:int -> l:avll x {is_not_heavy l} -> r:avlr x {is_left_big l r} -> Tot (t:avln (real_height l + 1) {(forall y. in_tree y t <==> in_tree y l \/ in_tree y r \/ x = y)})
 let balL0 x l r = match l with
@@ -287,6 +285,9 @@ let rec insert x s = match s with
       bal_height v insl r;
       bal_in_tree v insl r;
       intro_diff_0_or_1_c (bal v insl r) s;
+      assert (forall y. (in_tree y (bal v insl r)) <==> (in_tree y s \/ x = y));
+      assert (not_empty (bal v insl r));
+      assert (eq_or_up s (bal v insl r));
       bal v insl r
     end else if x > v then begin
       let insr = insert x r in
@@ -295,7 +296,16 @@ let rec insert x s = match s with
       bal_not_empty v l insr;
       bal_height v l insr;
       bal_in_tree v l insr;
-      magic_lemma_bal (bal v l insr) s;
+      (assert (forall y. in_tree y insr <==> in_tree y r \/ x = y));
+      in_tree_more_than_lemma v insr;
       intro_diff_0_or_1_c (bal v l insr) s;
+      assert (eq_or_up s (bal v l insr));
+      assert (not_empty (bal v l insr));
+      assert (forall y. (in_tree y s) <==> in_tree y l \/ in_tree y r \/ v = y);
+
+      assert (forall y. (in_tree y (bal v l insr)) <==> (in_tree y l \/ in_tree y r \/ v = y \/ x = y));
+      assert (forall y. (in_tree y (bal v l insr)) <==> (in_tree y s \/ x = y));
+      assert (not_empty (bal v l insr));
+      assert (eq_or_up s (bal v l insr));
       bal v l insr
     end else s
