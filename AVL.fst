@@ -110,9 +110,6 @@ let left (Node _ l _ _) = l
 val right: t:tree {not_empty t} -> Tot tree
 let right (Node _ _ r _) = r
 
-val left_of_avl_is_avll : t:avl{not_empty t} -> y:int {y == head t } -> Lemma(all_less_than y (left t))
-let left_of_avl_is_avll t y = ()
-
 val real_diff : s:tree -> t:tree -> Tot int
 let real_diff s t = real_height s - real_height t
 
@@ -157,13 +154,11 @@ val balL0 : x:int -> l:avll x {is_not_heavy l} -> r:avlr x {is_left_big l r} -> 
 let balL0 x l r = match l with
   | (Node lv ll lr _) ->
     let y = mk_node x lr r in
-    all_more_transitive lv x r;
     mk_node lv ll y
   | _ -> admit ()
 
 val balLL : x:int -> l:avll x {is_left_heavy l} -> r:avlr x {is_left_big l r} -> Tot (avlt l)
 let balLL v (Node lv ll lr _) r =
-  all_more_transitive lv v r;
   mk_node lv ll (mk_node v lr r)
 
 val eq_or_up : s:tree{has_real_heights s} -> t:tree{has_real_heights t} -> Tot bool
@@ -187,22 +182,15 @@ let re_bal l r t = big_ht l r t && bal_ht l r t
 
 val balLR :x:int  -> l:avll x {is_right_heavy l} -> r:avlr x {is_left_big l r} -> Tot (t:avlt l  {(forall y. in_tree y t <==> in_tree y l \/ in_tree y r \/ x = y)})
 let balLR v l r = match l with
-  | (Node lv ll (Node lrv lrl lrr lrh) lh) ->
-    let y = mk_node v lrr r in
-
-    all_more_transitive lrv v r;
-    all_less_transitive lrv lv ll;
-
-    mk_node lrv (mk_node lv ll lrl) (y)
+  | (Node lv ll (Node lrv lrl lrr _) lh) ->
+    mk_node lrv (mk_node lv ll lrl) (mk_node v lrr r)
   | _ ->
     (* should be impossible *)
     admit()
 
-
 val balR0 : x:int  -> r:avlr x {is_not_heavy r} -> l:avll x {is_right_big l r} -> Tot (t:avln (real_height r + 1) {(forall y. in_tree y t <==> in_tree y l \/ in_tree y r \/ x = y)})
 let balR0 x r l = match r with
   | (Node rv rl rr _) ->
-    all_less_transitive rv x l;
     mk_node rv (mk_node x l rl) rr
   | _ ->
    (* should be impossible *)
@@ -211,14 +199,11 @@ let balR0 x r l = match r with
 
 val balRR : x:int -> l:avll x -> r:avlr x {is_right_big l r && is_right_heavy r} -> Tot (t:avlt r { (forall y. in_tree y t <==> in_tree y l \/ in_tree y r \/ x = y)})
 let balRR x l (Node rv rl rr _) =
-  all_less_transitive rv x l;
   mk_node rv (mk_node x l rl) rr
 
 val balRL : x:int -> l: avll x -> r:avlr x {is_right_big l r && is_left_heavy r} -> Tot (t:avlt r {(forall y. in_tree y t <==> in_tree y l \/ in_tree y r \/ x = y)})
 let balRL x l = function
   | (Node rv (Node rlv rll rlr _) rr _) ->
-    all_less_transitive rlv x l;
-    all_more_transitive rlv rv rr;
     mk_node rlv (mk_node x l rll ) (mk_node rv rlr rr)
   | _ ->
     (* should be impossible *)
@@ -227,16 +212,25 @@ let balRL x l = function
 val no_balancing_needed : l:tree {has_real_heights l } -> r:tree {has_real_heights r /\ has_bal 2 l r /\ not (is_left_big l r) /\ not (is_right_big l r)} -> Lemma (has_bal 1 l r)
 let no_balancing_needed l r = ()
 
+val balance_ilb  : x:int -> l:avll x -> r:avlr x {has_bal 2 l r /\ is_left_big l r} -> Tot (t:avl {re_bal l r t /\ (forall y. in_tree y t <==> in_tree y l \/ in_tree y r \/ x = y)})
+let balance_ilb v l r =
+  if (is_left_heavy l) then balLL v l r
+  else if (is_right_heavy l) then balLR v l r
+  else balL0 v l r
+
+val balance_irb : x:int -> l:avll x -> r:avlr x {has_bal 2 l r /\ is_right_big l r} -> Tot (t:avl {re_bal l r t /\ (forall y. in_tree y t <==> in_tree y l \/ in_tree y r \/ x = y)})
+let balance_irb v l r =
+  if (is_left_heavy r) then balRL v l r
+  else if (is_right_heavy r) then balRR v l r
+  else balR0 v r l
+
+
 val bal : x:int -> l:avll x -> r:avlr x {has_bal 2 l r} -> Tot (t:avl {re_bal l r t /\ (forall y. in_tree y t <==> in_tree y l \/ in_tree y r \/ x = y)})
 let bal v l r  =
   let ilb = is_left_big l r in
   let irb = is_right_big l r in
-  if (ilb && is_left_heavy l) then balLL v l r
-  else if (ilb && is_right_heavy l) then balLR v l r
-  else if (ilb) then balL0 v l r
-  else if (irb && is_left_heavy r) then balRL v l r
-  else if (irb && is_right_heavy r) then balRR v l r
-  else if (irb) then balR0 v r l
+  if (ilb) then balance_ilb v l r
+  else if (irb) then balance_irb v l r
   else begin
     no_balancing_needed l r;
     mk_node v l r
