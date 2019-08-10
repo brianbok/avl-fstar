@@ -134,21 +134,6 @@ let is_left_big l r = diff l r = 2
 val is_right_big : l:tree{has_real_heights l} -> r:tree{has_real_heights r} -> Tot bool
 let is_right_big l r = diff r l = 2
 
-val all_more_transitive: v:int -> x:int {x > v} -> l:tree {all_more_than x l} -> Lemma (all_more_than v l)
-let all_more_transitive v x l = ()
-
-val all_less_transitive: v:int -> x:int {x <= v} -> l:tree {all_less_than x l} -> Lemma (all_less_than v l)
-let all_less_transitive v x l = ()
-
-val all_more_intro: v:int -> x:int {x > v} -> l:avll x {all_more_than v l} -> r:avlr x{all_more_than v r && has_bal 1 l r} -> Lemma (all_more_than v (mk_node x l r))
-let all_more_intro v x l r  = ()
-
-val all_less_intro: v:int -> x:int {x < v} -> l:avll x {all_less_than v l} -> r:avlr x {all_less_than v r && has_bal 1 l r} -> Lemma ((all_less_than v (mk_node x l r)))
-let all_less_intro v x l r  = ()
-
-// bajo la hipótesis de False, `()` tiene cualquier tipo, en particular `a`
-let unreachable #a () : Pure a (requires False) (ensures (fun _ -> True)) = ()
-
 #push-options "--z3rlimit 25"
 val balL0 : x:int -> l:avll x {is_not_heavy l} -> r:avlr x {is_left_big l r} -> Tot (t:avln (real_height l + 1) {(forall y. in_tree y t <==> in_tree y l \/ in_tree y r \/ x = y)})
 let balL0 x (Node lv ll lr _) r =
@@ -201,9 +186,6 @@ val balRL : x:int -> l: avll x -> r:avlr x {is_right_big l r && is_left_heavy r}
 let balRL x l (Node rv (Node rlv rll rlr _) rr _) =
     mk_node rlv (mk_node x l rll ) (mk_node rv rlr rr)
 
-val no_balancing_needed : l:tree {has_real_heights l } -> r:tree {has_real_heights r /\ has_bal 2 l r /\ not (is_left_big l r) /\ not (is_right_big l r)} -> Lemma (has_bal 1 l r)
-let no_balancing_needed l r = ()
-
 val balance_ilb  : x:int -> l:avll x -> r:avlr x {has_bal 2 l r /\ is_left_big l r} -> Tot (t:avl {re_bal l r t /\ (forall y. in_tree y t <==> in_tree y l \/ in_tree y r \/ x = y)})
 let balance_ilb v l r =
   if (is_left_heavy l) then balLL v l r
@@ -221,12 +203,12 @@ let bal v l r  =
   if (is_left_big l r) then balance_ilb v l r
   else if (is_right_big l r) then balance_irb v l r
   else begin
-    no_balancing_needed l r;
     mk_node v l r
   end
 
+#push-options "--z3rlimit 60"
+
 val insert: x:int -> s:avl -> Tot (t:avl {not_empty t /\ eq_or_up s t /\ (forall y. (in_tree y t) <==> (in_tree y s \/ x = y))})
-#push-options "--z3rlimit 50"
 let rec insert x s = match s with
   | Leaf -> singleton x
   | Node v l r _ ->
@@ -235,4 +217,27 @@ let rec insert x s = match s with
     end else if x > v then begin
       bal v l (insert x r)
     end else s
+
+val get_min : t:avl{not_empty t} -> (rm:int{in_tree rm t /\ (forall y. in_tree y t ==> y >= rm)}) & (rt:avl{eq_or_down t rt /\ all_more_than rm rt /\ (forall y. in_tree y rt <==> in_tree y t /\ y > rm)})
+let rec get_min = function
+  | Node x Leaf r _ -> (|x, r|)
+  | Node x l r _    ->
+    let (|x', l'|) = get_min l in
+    (|x', bal x l' r |)
+
+val merge: x:int -> l:avll x -> r:avlr x {has_bal 1 l r} -> t:avl {big_ht l r t /\ (forall y. in_tree y t <==> in_tree y l \/ in_tree y r)}
+let merge x l r = match (x, l, r) with
+  | (_, Leaf, r) -> r
+  | (_, l, Leaf) -> l
+  | _ -> let (|y, r'|) = get_min r in
+    bal y l r'
+
+val delete : x:int -> s:avl -> t:avl {eq_or_down s t /\ (forall y. in_tree y t <==> (in_tree y s /\ x <> y))}
+let rec delete x = function
+  | (Node n l r _) ->
+    if (x < n) then bal n (delete x l) r
+    else if (x > n) then bal n l (delete x r)
+    else merge x l r
+  | Leaf -> Leaf
+
 #pop-options
