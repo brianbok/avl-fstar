@@ -241,3 +241,13 @@ let rec delete x = function
   | Leaf -> Leaf
 
 #pop-options
+
+val lookup: x:int -> s:avl -> Tot (r:bool {r <==> in_tree x s})
+let rec lookup x = function
+  | Leaf -> false
+  | Node v l r _ ->
+    if x < v then begin
+      lookup x l
+    end else if x > v then begin
+      lookup x r
+    end else true
